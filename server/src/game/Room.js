@@ -22,7 +22,8 @@ const DEFAULT_SETTINGS = {
   totalRounds: 3,
   roundDurationMs: 80_000,
   wordSelectionMs: 10_000,
-  maxPlayers: 12,
+  maxPlayers: 8,
+  wordChoiceCount: 5,
   difficulty: "mixed", // easy | medium | hard | mixed
   wordMode: "official", // official | custom | mixed
   customWords: [],
@@ -207,8 +208,70 @@ class Room {
     };
   }
 
+  validateWordConfig() {
+    const choiceCount = Number(this.settings.wordChoiceCount || DEFAULT_SETTINGS.wordChoiceCount);
+    const required = Number.isInteger(choiceCount) ? Math.min(5, Math.max(4, choiceCount)) : 5;
+    const customWords = this.getCustomWordEntries();
+    const mode = this.settings.wordMode || "official";
+
+    if (mode === "custom" && customWords.length < required) {
+      throw new Error(`You need at least ${required} custom words to use ${required} choices.`);
+    }
+
+    if (mode === "mixed") {
+      const combined = [...customWords, ...this.getOfficialWordEntries(40)];
+      const unique = dedupeWords(combined).filter((item) => !this.usedWords.has(item.word.toLowerCase()));
+      if (unique.length < required) {
+        throw new Error(`You need at least ${required} available words for ${required} choices.`);
+      }
+    }
+
+    return true;
+  }
+
+  getCustomWordEntries() {
+    const list = Array.isArray(this.settings.customWords) ? this.settings.customWords : [];
+    return dedupeWords(
+      list
+        .map((word) => String(word || "").trim())
+        .filter((word) => word && word.length >= 2 && word.length <= 40)
+        .map((word) => ({ word, category: "Custom", difficulty: "medium" }))
+    );
+  }
+
+  getOfficialWordEntries(limit = 40) {
+    const pool = pickRandomWords(Math.max(limit, this.settings.wordChoiceCount || 5), this.settings.difficulty || "mixed", this.usedWords);
+    return pool.map((word) => ({
+      word: word.word,
+      category: word.category,
+      difficulty: word.difficulty,
+    }));
+  }
+
+  getWordCandidatePool() {
+    const custom = this.getCustomWordEntries();
+    const official = this.getOfficialWordEntries(Math.max(50, (this.settings.wordChoiceCount || 5) * 10));
+    if (this.settings.wordMode === "custom") return custom;
+    if (this.settings.wordMode === "mixed") return dedupeWords([...custom, ...official]);
+    return official;
+  }
+
+  buildWordChoices() {
+    const required = Number(this.settings.wordChoiceCount || DEFAULT_SETTINGS.wordChoiceCount);
+    const pool = this.getWordCandidatePool();
+    const available = pool.filter((entry) => !this.usedWords.has(entry.word.toLowerCase()));
+    const source = available.length >= required ? available : pool;
+    const selected = shuffleSlice(source, Math.min(required, source.length));
+    this.wordChoices = selected.map((entry) => ({ ...entry, word: entry.word }));
+    if (this.wordChoices.length < required) {
+      throw new Error(`You need at least ${required} words to use ${required} choices.`);
+    }
+    return this.wordChoices;
+  }
+
   startGame() {
     if (this.playerCount < 2) throw new Error("Need at least 2 players");
+    this.validateWordConfig();
     this.roundNumber = 0;
     this.currentDrawerIndex = -1;
     for (const p of this.players.values()) p.score = 0;
@@ -229,27 +292,15 @@ class Room {
     this.strokes = [];
     this.phase = PHASES.WORD_SELECTION;
 
-    const custom = (this.settings.customWords || []).map((w) => ({
-      word: w,
-      category: "Custom",
-      difficulty: "medium",
-    }));
-    const pool =
-      this.settings.wordMode === "custom" && custom.length >= 3
-        ? custom
-        : this.settings.wordMode === "mixed"
-        ? [...custom, ...pickRandomWords(6, this.settings.difficulty, this.usedWords)]
-        : pickRandomWords(6, this.settings.difficulty, this.usedWords);
-
-    this.wordChoices = pickRandomWords === pool ? pool : shuffleSlice(pool, 3);
+    this.buildWordChoices();
   }
 
   selectWord(socketId, word) {
     if (socketId !== this.currentDrawerId) throw new Error("Not the drawer");
-    const match = this.wordChoices.find((w) => w.word === word);
+    const match = this.wordChoices.find((w) => w.word.toLowerCase() === String(word || "").trim().toLowerCase());
     if (!match) throw new Error("Invalid word choice");
     this.currentWord = match.word;
-    this.usedWords.add(match.word);
+    this.usedWords.add(match.word.toLowerCase());
     this.wordChoices = [];
     this.roundStartedAt = Date.now();
     this.phase = PHASES.DRAWING;
@@ -259,7 +310,7 @@ class Room {
     if (this.wordChoices.length === 0) return;
     const pick = this.wordChoices[Math.floor(Math.random() * this.wordChoices.length)];
     this.currentWord = pick.word;
-    this.usedWords.add(pick.word);
+    this.usedWords.add(pick.word.toLowerCase());
     this.wordChoices = [];
     this.roundStartedAt = Date.now();
     this.phase = PHASES.DRAWING;
@@ -401,6 +452,16 @@ class Room {
 
 function shuffleSlice(arr, n) {
   return [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+}
+
+function dedupeWords(items) {
+  const seen = new Set();
+  return items.filter((entry) => {
+    const key = String(entry && entry.word ? entry.word : entry).trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
