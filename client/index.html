@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Doodl — draw &amp; guess with friends</title>
+<link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<section id="screen-home" class="screen active">
+  <div class="home-card">
+    <h1 class="logo">🖍️ Doodl<span class="logo-dot">.</span></h1>
+    <p class="tagline">Draw. Guess. Laugh with friends.</p>
+
+    <div class="auth-tabs" id="auth-tabs">
+      <button class="auth-tab active" data-tab="guest">Guest</button>
+      <button class="auth-tab" data-tab="login">Log In</button>
+      <button class="auth-tab" data-tab="register">Sign Up</button>
+    </div>
+
+    <div id="auth-panel-guest" class="auth-panel">
+      <input id="home-username" class="input" placeholder="Your name" maxlength="20" />
+    </div>
+    <div id="auth-panel-login" class="auth-panel hidden">
+      <input id="login-email" class="input" placeholder="Email" type="email" />
+      <input id="login-password" class="input" placeholder="Password" type="password" />
+      <button id="btn-login" class="btn btn-secondary" type="button">Log In</button>
+    </div>
+    <div id="auth-panel-register" class="auth-panel hidden">
+      <input id="register-username" class="input" placeholder="Username" maxlength="20" />
+      <input id="register-email" class="input" placeholder="Email" type="email" />
+      <input id="register-password" class="input" placeholder="Password (min 8 chars)" type="password" />
+      <button id="btn-register" class="btn btn-secondary" type="button">Create Account</button>
+    </div>
+    <p id="auth-status" class="hint-text"></p>
+
+    <div class="avatar-picker">
+      <div id="avatar-preview" class="avatar-preview"></div>
+      <button id="btn-shuffle-avatar" class="btn-mini" type="button">🎲 shuffle</button>
+    </div>
+    <label class="checkbox-row sound-toggle"><input id="home-sound" type="checkbox" checked /> Sound effects</label>
+    <button id="btn-create-room" class="btn btn-primary">Create Room</button>
+    <div class="join-row">
+      <input id="home-roomcode" class="input" placeholder="ROOM CODE" maxlength="6" style="text-transform:uppercase" />
+      <button id="btn-join-room" class="btn btn-secondary">Join</button>
+    </div>
+    <p id="home-error" class="error-text"></p>
+
+    <button id="btn-toggle-friends" class="btn-mini" type="button">👥 Friends</button>
+    <div id="friends-panel" class="friends-panel hidden">
+      <div class="friends-add-row">
+        <input id="friend-username-input" class="input" placeholder="Add friend by username" />
+        <button id="btn-add-friend" class="btn-mini" type="button">Add</button>
+      </div>
+      <div id="friends-pending" class="friends-section"></div>
+      <div id="friends-list" class="friends-section"></div>
+    </div>
+  </div>
+</section>
+
+<!-- LOBBY SCREEN -->
+<section id="screen-lobby" class="screen">
+  <div class="lobby-wrap">
+    <header class="lobby-header">
+      <h2>Room <span id="lobby-code" class="room-code"></span> <button id="btn-copy-code" class="btn-mini">copy code</button></h2>
+      <button id="btn-copy-link" class="btn-mini">🔗 copy invite link</button>
+    </header>
+    <div class="lobby-body">
+      <div class="lobby-players">
+        <h3>Players</h3>
+        <ul id="lobby-player-list" class="player-list"></ul>
+      </div>
+      <div class="lobby-settings">
+        <h3>Settings</h3>
+        <label>Rounds
+          <input id="set-rounds" type="number" min="1" max="20" value="3" />
+        </label>
+        <label>Round time (s)
+          <input id="set-duration" type="number" min="20" max="180" value="80" />
+        </label>
+        <label>Difficulty
+          <select id="set-difficulty">
+            <option value="mixed">Mixed</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
+        <label class="checkbox-row"><input id="set-hints" type="checkbox" checked /> Hints</label>
+        <label class="checkbox-row"><input id="set-closeguess" type="checkbox" checked /> "Close guess" feedback</label>
+        <label class="checkbox-row"><input id="set-spectators" type="checkbox" checked /> Allow late-joiners to spectate</label>
+        <label class="checkbox-row"><input id="set-voice" type="checkbox" checked /> Voice chat</label>
+        <button id="btn-start-game" class="btn btn-primary">Start Game</button>
+        <p class="hint-text">Need at least 2 players to start.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GAME SCREEN -->
+<section id="screen-game" class="screen">
+  <div class="game-wrap">
+    <div class="game-topbar">
+      <span id="game-round" class="pill">Round 1/3</span>
+      <span id="game-word-slots" class="word-slots"></span>
+      <span id="game-timer" class="pill timer">80</span>
+      <button id="btn-voice-toggle" class="pill voice-btn" title="Voice chat">🎤 Off</button>
+    </div>
+    <div id="spectator-banner" class="spectator-banner hidden">👀 Watching — you'll join next round</div>
+    <div class="game-main">
+      <aside class="game-players">
+        <ul id="game-player-list" class="player-list compact"></ul>
+      </aside>
+      <div class="canvas-area">
+        <canvas id="draw-canvas" width="800" height="600"></canvas>
+        <div id="word-choice-overlay" class="overlay hidden">
+          <h3>Choose a word to draw</h3>
+          <div id="word-choice-buttons" class="word-choice-buttons"></div>
+        </div>
+        <div id="round-end-overlay" class="overlay hidden">
+          <h3>The word was:</h3>
+          <p id="round-end-word" class="revealed-word"></p>
+          <button id="btn-replay" class="btn btn-secondary" type="button">▶ Replay drawing</button>
+        </div>
+        <div id="transition-banner" class="transition-banner hidden">
+          <div class="transition-round"></div>
+          <div class="transition-drawer"></div>
+        </div>
+        <div id="reactions-layer"></div>
+      </div>
+      <div class="game-toolbar" id="drawing-toolbar">
+        <div class="tool-group" id="tool-buttons">
+          <button data-tool="pencil" class="tool-btn active" title="Pencil">✏️</button>
+          <button data-tool="marker" class="tool-btn" title="Marker">🖊️</button>
+          <button data-tool="eraser" class="tool-btn" title="Eraser">🧽</button>
+          <button data-tool="line" class="tool-btn" title="Line">╱</button>
+          <button data-tool="rect" class="tool-btn" title="Rectangle">▭</button>
+          <button data-tool="circle" class="tool-btn" title="Circle">◯</button>
+          <button data-tool="fill" class="tool-btn" title="Fill">🪣</button>
+        </div>
+        <input id="color-picker" type="color" value="#2b2d42" />
+        <input id="brush-size" type="range" min="2" max="40" value="6" />
+        <button id="btn-undo" class="tool-btn" title="Undo">↩️</button>
+        <button id="btn-redo" class="tool-btn" title="Redo">↪️</button>
+        <button id="btn-clear" class="tool-btn" title="Clear">🗑️</button>
+      </div>
+    </div>
+    <div class="game-chat">
+      <div id="chat-log" class="chat-log"></div>
+      <div class="reaction-bar" id="reaction-bar">
+        <button data-emoji="😂">😂</button><button data-emoji="🔥">🔥</button>
+        <button data-emoji="👏">👏</button><button data-emoji="😭">😭</button>
+        <button data-emoji="🤯">🤯</button><button data-emoji="❤️">❤️</button>
+        <button data-emoji="💀">💀</button>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" class="input" placeholder="Type your guess..." maxlength="60" autocomplete="off" />
+        <button class="btn btn-primary" type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS SCREEN -->
+<section id="screen-results" class="screen">
+  <div class="results-card">
+    <h2>🏆 Game Complete</h2>
+    <ol id="results-list" class="results-list"></ol>
+    <div id="fun-stats" class="fun-stats"></div>
+    <div class="results-actions">
+      <button id="btn-play-again" class="btn btn-primary">Play Again</button>
+      <button id="btn-return-lobby" class="btn btn-secondary">Return to Lobby</button>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script type="module" src="src/main.js"></script>
+
+</body>
+</html>
