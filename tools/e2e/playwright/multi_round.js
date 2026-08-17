@@ -8,7 +8,7 @@ module.exports = async function runMultiRound(page, opts = {}) {
   // Helper sleep
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  await page.goto('http://localhost:3001');
+  await page.goto('http://127.0.0.1:3001');
   await page.waitForTimeout(300);
   // fill host name and create room using Playwright actions to avoid evaluate-arg limitations
   await page.fill('#home-username', hostName).catch(() => {});
