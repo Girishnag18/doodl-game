@@ -3,7 +3,8 @@ const run = require('./multi_round');
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
   try {
     const result = await run(page, { bots: 4, rounds: 3 });
     console.log('E2E result:', result);
