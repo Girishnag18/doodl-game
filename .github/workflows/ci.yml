@@ -35,18 +35,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      - name: Install server deps + Playwright
+      - name: Install server deps
         working-directory: ./server
         run: |
           npm ci --prefer-offline
-          npm install --no-audit --no-fund -D playwright
-      - name: Install Playwright browsers
-        working-directory: ./server
+      - name: Install Playwright at repo root and browsers
         run: |
+          npm install --no-audit --no-fund -D playwright
           npx playwright install --with-deps chromium
       - name: Run deterministic E2E runner
-        working-directory: ./server
         env:
           CI: true
         run: |
-          node ../tools/e2e/playwright/runner.js
+          node tools/e2e/playwright/runner.js
