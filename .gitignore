@@ -4,3 +4,12 @@ server/node_modules/
 .env.*
 dist/
 .DS_Store
+
+# Added by automation to ignore runtime artifacts
+# Runtime artifacts
+server/server.log
+server/server.err
+server/server.pid
+tools/monitor_ci_seen.txt
+tools/e2e/screenshots/
+tools/e2e/logs/
