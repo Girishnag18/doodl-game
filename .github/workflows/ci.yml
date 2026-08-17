@@ -45,7 +45,8 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
       - name: Run deterministic E2E runner
+        working-directory: ./server
         env:
           CI: true
         run: |
-          node tools/e2e/playwright/runner.js
+          node ../tools/e2e/playwright/runner.js
