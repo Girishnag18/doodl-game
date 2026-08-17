@@ -43,6 +43,19 @@ jobs:
         run: |
           npm install --no-audit --no-fund -D playwright
           npx playwright install --with-deps chromium
+      - name: Start server in background
+        working-directory: ./server
+        run: |
+          npm start > server.log 2>&1 &
+          echo $! > server.pid
+          # wait for server to be ready
+          for i in {1..30}; do
+            if curl -sS http://localhost:3001/ > /dev/null; then
+              echo "server ready"; break;
+            fi
+            sleep 1
+          done
+          tail -n +1 server.log | sed -n '1,200p'
       - name: Run deterministic E2E runner
         env:
           CI: true
