@@ -2,18 +2,17 @@
 // Usage: run in Playwright context or adapt into a Playwright test runner.
 
 module.exports = async function runMultiRound(page, opts = {}) {
-  // opts: { roomCode, hostName, bots, rounds, wordChoiceCount, wordMode, customWords }
-  const { hostName = 'AutoHost', bots = 4, rounds = 3 } = opts;
+  // opts: { roomCode, hostName, bots, rounds, wordChoiceCount, wordMode, customWords, screenshotPrefix }
+  const { hostName = 'AutoHost', bots = 4, rounds = 3, screenshotPrefix } = opts;
 
   // Helper sleep
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   await page.goto('http://localhost:3001');
   await page.waitForTimeout(300);
-  await page.evaluate((host) => {
-    const n = document.querySelector('#home-username'); if (n) n.value = host;
-    const btn = document.querySelector('#btn-create-room'); if (btn) btn.click();
-  }, hostName);
+  // fill host name and create room using Playwright actions to avoid evaluate-arg limitations
+  await page.fill('#home-username', hostName).catch(() => {});
+  await page.click('#btn-create-room').catch(() => {});
   await page.waitForTimeout(800);
 
   const roomCode = await page.evaluate(() => document.querySelector('#lobby-code')?.textContent?.trim());
@@ -23,11 +22,10 @@ module.exports = async function runMultiRound(page, opts = {}) {
     const p = await page.context().newPage();
     await p.goto('http://localhost:3001');
     await p.waitForTimeout(200);
-    await p.evaluate((name, rc) => {
-      const n = document.querySelector('#home-username'); if (n) n.value = name;
-      const r = document.querySelector('#home-roomcode'); if (r) r.value = rc;
-      const b = document.querySelector('#btn-join-room'); if (b) b.click();
-    }, `Bot${i}`, roomCode);
+    // join bot using Playwright actions to avoid evaluate argument issues
+    await p.fill('#home-username', `Bot${i}`).catch(() => {});
+    await p.fill('#home-roomcode', roomCode).catch(() => {});
+    await p.click('#btn-join-room').catch(() => {});
     contexts.push(p);
     await sleep(400);
   }
@@ -39,16 +37,38 @@ module.exports = async function runMultiRound(page, opts = {}) {
   // rounds loop (simple): wait for drawer choices, select first, have bots submit the word
   for (let round = 1; round <= rounds; round++) {
     // wait for drawer choices on whichever page has them
-    const drawerPage = page; // in deterministic runs earlier the host's page works
-    await page.waitForSelector('#word-choice-buttons .word-choice-btn', { timeout: 10000 });
-    const word = await page.evaluate(() => document.querySelector('#word-choice-buttons .word-choice-btn')?.textContent?.trim());
-    await page.evaluate(() => document.querySelector('#word-choice-buttons .word-choice-btn')?.click());
+    let word;
+    let clicked = false;
+    const pagesToCheck = [page, ...contexts];
+    for (const p of pagesToCheck) {
+      const count = await p.$$eval('#word-choice-buttons .word-choice-btn', els => els.length).catch(() => 0);
+      if (count > 0) {
+        word = await p.$$eval('#word-choice-buttons .word-choice-btn', els => els[0].textContent.trim());
+        await p.evaluate(() => document.querySelectorAll('#word-choice-buttons .word-choice-btn')[0]?.click()).catch(() => {});
+        clicked = true;
+        break;
+      }
+    }
+    if (!clicked) {
+      // fallback: wait longer on host page
+      await page.waitForSelector('#word-choice-buttons .word-choice-btn', { timeout: 30000 });
+      word = await page.evaluate(() => document.querySelector('#word-choice-buttons .word-choice-btn')?.textContent?.trim());
+      await page.evaluate(() => document.querySelector('#word-choice-buttons .word-choice-btn')?.click());
+    }
     await sleep(300);
+
+    // optional screenshot of game screen after choice selected
+    if (screenshotPrefix) {
+      try {
+        const path = `${screenshotPrefix}-round${round}-game.png`;
+        await page.screenshot({ path, fullPage: true }).catch(() => {});
+      } catch (e) { /* ignore */ }
+    }
+
     for (const p of contexts) {
-      await p.evaluate((w) => {
-        const input = document.querySelector('#chat-input'); if (input) input.value = w;
-        const form = document.querySelector('#chat-form'); if (form) form.dispatchEvent(new Event('submit', { bubbles: true }));
-      }, word);
+      // use Playwright input + press Enter to submit chat (works with typical chat forms)
+      await p.fill('#chat-input', word).catch(() => {});
+      await p.press('#chat-input', 'Enter').catch(() => {});
       await sleep(150);
     }
     await sleep(800);
@@ -56,6 +76,15 @@ module.exports = async function runMultiRound(page, opts = {}) {
 
   // wait for results
   await page.waitForSelector('#screen-results', { timeout: 10000 }).catch(() => {});
+
+  // optional screenshot of results
+  if (screenshotPrefix) {
+    try {
+      const path = `${screenshotPrefix}-results.png`;
+      await page.screenshot({ path, fullPage: true }).catch(() => {});
+    } catch (e) { /* ignore */ }
+  }
+
   const winner = await page.evaluate(() => document.querySelector('#winner-badge')?.textContent?.trim());
   return { roomCode, winner };
 };
