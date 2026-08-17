@@ -419,16 +419,37 @@ function sanitizeSettings(settings = {}) {
   const out = {};
   if (Number.isInteger(settings.totalRounds)) out.totalRounds = Math.min(20, Math.max(1, settings.totalRounds));
   if (Number.isInteger(settings.roundDurationMs)) out.roundDurationMs = Math.min(180000, Math.max(20000, settings.roundDurationMs));
-  if (Number.isInteger(settings.maxPlayers)) out.maxPlayers = Math.min(16, Math.max(2, settings.maxPlayers));
+  if (Number.isInteger(settings.maxPlayers)) out.maxPlayers = Math.min(20, Math.max(2, settings.maxPlayers));
+  if (Number.isInteger(settings.wordChoiceCount)) out.wordChoiceCount = Math.min(5, Math.max(4, settings.wordChoiceCount));
   if (["easy", "medium", "hard", "mixed"].includes(settings.difficulty)) out.difficulty = settings.difficulty;
   if (["official", "custom", "mixed"].includes(settings.wordMode)) out.wordMode = settings.wordMode;
-  if (Array.isArray(settings.customWords)) {
-    out.customWords = settings.customWords
-      .map((w) => String(w).trim().toLowerCase())
-      .filter((w) => w.length >= 3 && w.length <= 24 && /^[a-z ]+$/.test(w))
-      .filter((w, i, arr) => arr.indexOf(w) === i)
-      .slice(0, 200);
+
+  const packedWords = Array.isArray(settings.customWords)
+    ? settings.customWords
+    : typeof settings.customWords === "string"
+    ? settings.customWords.split(/[\n,]+/)
+    : [];
+
+  const normalizedWords = new Set();
+  const validWords = [];
+  for (const candidate of packedWords) {
+    const words = String(candidate || "")
+      .split(/[\n,]+/)
+      .map((w) => w.trim())
+      .filter(Boolean);
+    for (const rawWord of words) {
+      if (rawWord.length < 2 || rawWord.length > 40) continue;
+      const safeWord = rawWord.replace(/\s+/g, " ").replace(/[<>]/g, "");
+      const key = safeWord.toLowerCase();
+      if (!safeWord || normalizedWords.has(key)) continue;
+      normalizedWords.add(key);
+      validWords.push(safeWord);
+      if (validWords.length >= 1000) break;
+    }
+    if (validWords.length >= 1000) break;
   }
+  out.customWords = validWords;
+
   if (typeof settings.hintsEnabled === "boolean") out.hintsEnabled = settings.hintsEnabled;
   if (typeof settings.closeGuessEnabled === "boolean") out.closeGuessEnabled = settings.closeGuessEnabled;
   if (typeof settings.allowSpectators === "boolean") out.allowSpectators = settings.allowSpectators;

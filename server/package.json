@@ -5,7 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test:unit": "node src/tests/unit/room_tests.js"
   },
   "dependencies": {
     "express": "^4.19.2",

@@ -30,7 +30,9 @@ class RoomManager {
       this.socketToRoom.set(socketId, code);
       return room;
     }
-    if (room.playerCount >= room.settings.maxPlayers) throw new Error("Room full");
+    if (room.playerCount >= room.settings.maxPlayers) {
+      throw new Error(`Room is full — maximum ${room.settings.maxPlayers} players allowed.`);
+    }
     room.addPlayer(socketId, username, avatar);
     this.socketToRoom.set(socketId, code);
     return room;

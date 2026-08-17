@@ -11,7 +11,7 @@
 <!-- HOME SCREEN -->
 <section id="screen-home" class="screen active">
   <div class="home-card">
-    <h1 class="logo">🖍️ Doodl<span class="logo-dot">.</span></h1>
+    <div class="logo-wrap"><span class="logo-mark" aria-hidden="true"></span><h1 class="logo">Doodl<span class="logo-dot">.</span></h1></div>
     <p class="tagline">Draw. Guess. Laugh with friends.</p>
 
     <div class="auth-tabs" id="auth-tabs">
@@ -64,8 +64,14 @@
 <section id="screen-lobby" class="screen">
   <div class="lobby-wrap">
     <header class="lobby-header">
-      <h2>Room <span id="lobby-code" class="room-code"></span> <button id="btn-copy-code" class="btn-mini">copy code</button></h2>
-      <button id="btn-copy-link" class="btn-mini">🔗 copy invite link</button>
+      <div>
+        <p class="eyebrow">Lobby</p>
+        <h2>Room <span id="lobby-code" class="room-code"></span> <button id="btn-copy-code" class="btn-mini">copy code</button></h2>
+      </div>
+      <div class="lobby-header-actions">
+        <div class="mini-stat"><span>Players</span><strong id="lobby-player-count">0 / 0</strong></div>
+        <button id="btn-copy-link" class="btn-mini">🔗 copy invite link</button>
+      </div>
     </header>
     <div class="lobby-body">
       <div class="lobby-players">
@@ -73,12 +79,39 @@
         <ul id="lobby-player-list" class="player-list"></ul>
       </div>
       <div class="lobby-settings">
-        <h3>Settings</h3>
+        <h3>Game settings</h3>
         <label>Rounds
           <input id="set-rounds" type="number" min="1" max="20" value="3" />
         </label>
         <label>Round time (s)
           <input id="set-duration" type="number" min="20" max="180" value="80" />
+        </label>
+        <label>Maximum players
+          <select id="set-max-players">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="8" selected>8</option>
+            <option value="10">10</option>
+            <option value="12">12</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+          </select>
+        </label>
+        <label>Word source
+          <select id="set-word-mode">
+            <option value="official">Official</option>
+            <option value="custom">Custom</option>
+            <option value="mixed">Mixed</option>
+          </select>
+        </label>
+        <label>Words shown to drawer
+          <select id="set-word-choice-count">
+            <option value="4">4</option>
+            <option value="5" selected>5</option>
+          </select>
         </label>
         <label>Difficulty
           <select id="set-difficulty">
@@ -88,6 +121,16 @@
             <option value="hard">Hard</option>
           </select>
         </label>
+        <div class="settings-group custom-words-box">
+          <label for="custom-words-input">Custom word bank</label>
+          <textarea id="custom-words-input" rows="4" placeholder="Pizza\nCricket\nTiger\nLaptop"></textarea>
+          <div class="custom-word-actions">
+            <button id="btn-import-custom-words" class="btn-mini" type="button">Import words</button>
+            <button id="btn-clear-custom-words" class="btn-mini btn-subtle" type="button">Clear</button>
+          </div>
+          <div id="custom-word-status" class="inline-status" aria-live="polite">0 words loaded</div>
+          <small id="custom-words-meta">0 words</small>
+        </div>
         <label class="checkbox-row"><input id="set-hints" type="checkbox" checked /> Hints</label>
         <label class="checkbox-row"><input id="set-closeguess" type="checkbox" checked /> "Close guess" feedback</label>
         <label class="checkbox-row"><input id="set-spectators" type="checkbox" checked /> Allow late-joiners to spectate</label>
@@ -126,6 +169,7 @@
         </div>
         <div id="transition-banner" class="transition-banner hidden">
           <div class="transition-round"></div>
+          <div class="transition-subtitle">Get ready</div>
           <div class="transition-drawer"></div>
         </div>
         <div id="reactions-layer"></div>
@@ -166,7 +210,11 @@
 <!-- RESULTS SCREEN -->
 <section id="screen-results" class="screen">
   <div class="results-card">
-    <h2>🏆 Game Complete</h2>
+    <div class="results-header">
+      <div class="eyebrow">Game complete</div>
+      <h2>Final standings</h2>
+    </div>
+    <div id="winner-badge" class="winner-badge hidden">Winner</div>
     <ol id="results-list" class="results-list"></ol>
     <div id="fun-stats" class="fun-stats"></div>
     <div class="results-actions">
@@ -175,6 +223,22 @@
     </div>
   </div>
 </section>
+
+<div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+<div id="modal-root" class="modal-root hidden" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <h3 id="modal-title">Confirm action</h3>
+    <p id="modal-message"></p>
+    <div id="modal-input-wrap" class="modal-input-wrap hidden">
+      <label for="modal-input" class="sr-only">Reason</label>
+      <input id="modal-input" class="input" maxlength="200" />
+    </div>
+    <div class="modal-actions">
+      <button id="modal-cancel" class="btn btn-secondary" type="button">Cancel</button>
+      <button id="modal-confirm" class="btn btn-primary" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script type="module" src="src/main.js"></script>
